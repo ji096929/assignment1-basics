@@ -46,17 +46,19 @@ def run_train_bpe(input_path:str,vocab_size:int,special_tokens:list[str]):
             merges.append(best_pair)
             vocab[current_id]=best_pair[0]+best_pair[1]
             current_id+=1
-            #遍历并替换
+            
             #扫这个预分词旧形态，扣除它贡献的所有的pair的次数，后面再以新形态加回来
             impacted_pretokens=pair_on_pretoken[best_pair]
             #这里要在快照里遍历，不然就是边遍历边discard/add了
             for impacted_pretoken in list(impacted_pretokens):
+                freq = pretoken_freqs[impacted_pretoken]
+                #减去对应pair的频率，删除pair对应的词索引
                 for pair in zip(impacted_pretoken,impacted_pretoken[1:]):
-                    #减去对应pair的频率，删除pair对应的词索引
-                    counts[pair]-=pretoken_freqs[impacted_pretoken]
+                    counts[pair]-=freq
                     pair_on_pretoken[pair].discard(impacted_pretoken)
                     if not pair_on_pretoken[pair]:  # 如果空了
                         del pair_on_pretoken[pair]
+
                 #生成新词
                 impacted_pretoken_list=list(impacted_pretoken)
                 i=0
@@ -66,12 +68,14 @@ def run_train_bpe(input_path:str,vocab_size:int,special_tokens:list[str]):
                         del impacted_pretoken_list[i+1]
                     i+=1
                 new_pretoken=tuple(impacted_pretoken_list)
+
                 #这时要以新形态加回来所有pair的次数，并统计一下pair在什么预分词上
                 for pair in zip(new_pretoken,new_pretoken[1:]):
                     pair_on_pretoken[pair].add(new_pretoken)
-                    counts[pair]+=pretoken_freqs[impacted_pretoken]
+                    counts[pair]+=freq
+
                 #增加新形态预分词的频率，删去旧形态预分词的频率
-                pretoken_freqs[new_pretoken]+=pretoken_freqs[impacted_pretoken]
+                pretoken_freqs[new_pretoken]+=freq
                 del pretoken_freqs[impacted_pretoken]
                 
         return vocab,merges
