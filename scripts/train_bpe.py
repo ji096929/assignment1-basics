@@ -8,7 +8,7 @@ import sys
 
 
 t0=time.perf_counter()
-vocab,merges=tokenizer.run_train_bpe("/home/lwz/cs336lab/assignment1-basics/tests/fixtures/tinystories_sample_5M.txt", 10000, ["<|endoftext|>"])
+vocab,merges=tokenizer.run_train_bpe("/home/lwz/cs336lab/assignment1-basics/data/TinyStoriesV2-GPT4-train.txt", 10000, ["<|endoftext|>"])
 t_delta=time.perf_counter()-t0
 usage = resource.getrusage(resource.RUSAGE_SELF)
 max_mem=usage.ru_maxrss
@@ -20,4 +20,6 @@ data_to_save = {
 }
 with open("/home/lwz/cs336lab/assignment1-basics/dump/train_bpe.txt", "wb") as f:
     pickle.dump(data_to_save,f)
+with open("tinystories_vocab_merges.pkl", "wb") as f:
+    pickle.dump((vocab, merges), f)
 print(t_delta,max_mem,max_length_token)
