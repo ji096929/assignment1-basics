@@ -1,5 +1,6 @@
 import regex as re
 from collections import Counter,defaultdict
+import heapq
 
 def init_vocab(special_tokens:list[str]):
     #初始化256个初始词
@@ -40,9 +41,29 @@ def run_train_bpe(input_path:str,vocab_size:int,special_tokens:list[str]):
                 pair_on_pretoken[pair].add(pretoken)
                 #在预分词词频表中统计相邻对的频率
                 counts[pair]+=freq
+        heap = []
+        for pair, freq in counts.items():
+            # 存负频次。pair 是 (bytes, bytes)，Python 可以直接比较 bytes 元组
+            heapq.heappush(heap, (-freq, pair))
         for _ in range(vocab_size-256-len(special_tokens)):
             #挑选频率最大&字典序最大
-            best_pair=max(counts,key=lambda p:(counts[p],p))
+            #best_pair=max(counts,key=lambda p:(counts[p],p))
+            #这里直接用max复杂度为n，太高了，在这里花费时间很长
+            # === 惰性删除：清掉堆顶的过期记录 ===
+            while heap:
+                neg_freq, best_pair = heap[0]
+                current_freq = counts.get(best_pair, 0)  # 当前真实频次
+                
+                if -neg_freq == current_freq and current_freq > 0:
+                    # 有效！就是它
+                    break
+                else:
+                    # 过期了，扔掉
+                    heapq.heappop(heap)
+            
+            if not heap:
+                break  # 堆空了，没 pair 可合并了
+            neg_freq, best_pair = heapq.heappop(heap)
             merges.append(best_pair)
             vocab[current_id]=best_pair[0]+best_pair[1]
             current_id+=1
@@ -58,6 +79,9 @@ def run_train_bpe(input_path:str,vocab_size:int,special_tokens:list[str]):
                     pair_on_pretoken[pair].discard(impacted_pretoken)
                     if not pair_on_pretoken[pair]:  # 如果空了
                         del pair_on_pretoken[pair]
+                    #把新值插入，不用考虑旧值
+                    if counts[pair] > 0:
+                        heapq.heappush(heap, (-counts[pair], pair))
 
                 #生成新词
                 impacted_pretoken_list=list(impacted_pretoken)
@@ -73,6 +97,7 @@ def run_train_bpe(input_path:str,vocab_size:int,special_tokens:list[str]):
                 for pair in zip(new_pretoken,new_pretoken[1:]):
                     pair_on_pretoken[pair].add(new_pretoken)
                     counts[pair]+=freq
+                    heapq.heappush(heap, (-counts[pair], pair))
 
                 #增加新形态预分词的频率，删去旧形态预分词的频率
                 pretoken_freqs[new_pretoken]+=freq
