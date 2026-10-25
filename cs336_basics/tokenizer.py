@@ -20,7 +20,23 @@ class Tokenizer:
         for m in re.finditer(PAT,text):
             #原本是字符串，需要先转为一个个字节
             encoded_bytes=m.group().encode("utf-8")
-            final_ids.append(self.bytes_to_id[encoded_bytes])
+            pretoken = [bytes([b]) for b in encoded_bytes]
+            #不断找到rank最小的相邻对合并，直到没有相邻对在表中
+            while True:
+                pairs=zip(pretoken[:-1],pretoken[1:])
+                valid_pairs=[p for p in pairs if p in self.ranks]
+                if not valid_pairs:
+                    break
+                #选出rank最小的pair
+                best_pair=min(valid_pairs,key=lambda p:self.ranks[p])
+                i=0
+                while i<len(pretoken)-1:
+                    if pretoken[i]==best_pair[0] and pretoken[i+1]==best_pair[1]:
+                        pretoken[i]=best_pair[0]+best_pair[1]
+                        del pretoken[i+1]
+                    i+=1
+            for token in pretoken:
+                final_ids.append(self.bytes_to_id[token])
         return final_ids
 
     def encode(self,text:str):
@@ -39,7 +55,7 @@ class Tokenizer:
                 #单个token直接apend
                 final_ids.append(self.special_to_id[seg])
             else:
-                final_ids.extend(self._encode_normal_text(text))
+                final_ids.extend(self._encode_normal_text(seg))
         return final_ids
     
     def encode_iterable(self,iterable):
