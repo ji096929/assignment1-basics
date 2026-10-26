@@ -62,10 +62,14 @@ def find_chunk_boundaries(
 def process_chunk(tok,input_path:str,start,end):
     with open(input_path,"rb") as f:
         f.seek(start)                 # 1. 把光标移到起点
-        raw = f.read(end - start)   # 2. 读取长度刚好是差值的字节数
-        chunk=raw.decode("utf-8",errors="ignore")
-        ids=tok.encode(chunk) 
-    return np.array(ids,dtype=np.int16)
+        remaining=end-start
+        blocks=[]
+        while remaining>0:
+            line=f.readline(remaining)
+            remaining-=len(line)
+            ids=tok.encode(line.decode("utf-8"))
+            blocks.append(np.array(ids,dtype=np.uint16))
+    return np.concatenate(blocks)
 
 def tokenize_dataset():
     with open(TOKENIZER_PKL,"rb") as f:
