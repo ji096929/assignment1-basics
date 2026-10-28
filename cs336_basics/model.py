@@ -55,3 +55,22 @@ class MySwiGLU(nn.Module):
         hidden=gate*value
         out=self.W2(hidden)
         return out
+
+class MyRoPE(nn.Module):
+    def __init__(self,theta:float,d_k:int,max_seq_len:int,device=None):
+        super().__init__()
+        k=torch.arange(0,d_k//2,device=device).float()
+        freqs=1.0/(theta**(2*k/d_k))
+        pos=torch.arange(max_seq_len,device=device).float()
+        angles=torch.outer(pos,freqs)
+        self.register_buffer("cos_cached",torch.cos(angles),persistent=False)
+        self.register_buffer("sin_cached",torch.sin(angles),persistent=False)
+
+    def forward(self,x:torch.Tensor,token_positions:torch.Tensor):
+        cos=self.cos_cached[token_positions]
+        sin=self.sin_cached[token_positions]
+        x_even=x[...,0::2]
+        x_odd=x[...,1::2]
+        x_even_rot=x_even*cos-x_odd*sin
+        x_odd_rot=x_even*sin+x_odd*cos
+        return torch.stack([x_even_rot,x_odd_rot],dim=-1).flatten(-2)
