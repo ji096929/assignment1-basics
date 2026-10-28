@@ -74,3 +74,10 @@ class MyRoPE(nn.Module):
         x_even_rot=x_even*cos-x_odd*sin
         x_odd_rot=x_even*sin+x_odd*cos
         return torch.stack([x_even_rot,x_odd_rot],dim=-1).flatten(-2)
+    
+def softmax(x:torch.Tensor,i:int):
+    max_values,_=torch.max(x,dim=i,keepdim=True)
+    x_shifted=x-max_values
+    exp_x=torch.exp(x_shifted)
+    sum_exp=torch.sum(exp_x,dim=i,keepdim=True)
+    return exp_x/sum_exp
