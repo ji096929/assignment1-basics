@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from einops import einsum
 import math
+import torch.nn.functional as F
 
 class MyLinear(nn.Module):
     def __init__(self,in_features,out_features,device=None,dtype=None):
@@ -35,3 +36,22 @@ class MyRMSNorm(nn.Module):
         x_norm=x/rms
         result=x_norm*self.g
         return result.to(in_dtype)
+
+class MySwiGLU(nn.Module):
+    def __init__(self, d_model: int, d_ff: int|None = None, device=None, dtype=None):
+        super().__init__()
+        if d_ff is None:
+            calc_ff = int(8 * d_model / 3)
+            self.d_ff = 64 * ((calc_ff + 63) // 64)
+        else:
+            self.d_ff = d_ff
+        self.W1=MyLinear(d_model,d_ff)
+        self.W2=MyLinear(d_ff,d_model)
+        self.W3=MyLinear(d_model,d_ff)
+    
+    def forward(self,x:torch.Tensor):
+        gate=F.silu(self.W1(x))
+        value=self.W3(x)
+        hidden=gate*value
+        out=self.W2(hidden)
+        return out
