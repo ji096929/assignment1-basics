@@ -385,7 +385,9 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    my_transformer_lm=model.MyTransformerLm(vocab_size,context_length,d_model,num_layers,num_heads,d_ff,rope_theta)
+    my_transformer_lm.load_state_dict(weights)
+    return my_transformer_lm(in_indices)
 
 
 def run_rmsnorm(
@@ -410,7 +412,7 @@ def run_rmsnorm(
     """
     my_rmsnorm=model.MyRMSNorm(d_model,eps)
     with torch.no_grad():
-        my_rmsnorm.g.copy_(weights)
+        my_rmsnorm.weight.copy_(weights)
     return my_rmsnorm(in_features)
 
 
