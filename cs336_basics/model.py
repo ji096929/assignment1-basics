@@ -162,3 +162,18 @@ class MyTransformerLm(nn.Module):
         norm_out=self.ln_final(input)
         linear_out=self.lm_head(norm_out)
         return linear_out
+
+def cross_entropy(logits:torch.Tensor,targets:torch.Tensor):
+    #logits(batch,seq,vocab_size)
+    #targets(batch,seq)
+    #处理数值稳定性，即减去最大值
+    max_logits,_=torch.max(logits,dim=-1,keepdim=True)
+    shifted_logits=logits-max_logits
+    #算log-softmax
+    exp_logits=torch.exp(shifted_logits)
+    sum_exp=torch.sum(exp_logits,dim=-1,keepdim=True)
+    log_probes=shifted_logits-torch.log(sum_exp)
+    #把正确标签对应的log概率拿出来
+    target_log_probes=torch.gather(log_probes,dim=-1,index=targets.unsqueeze(-1)).squeeze(-1)
+    loss=-target_log_probes
+    return loss.mean()
