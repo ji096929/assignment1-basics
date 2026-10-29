@@ -95,9 +95,9 @@ def run_swiglu(
     # swiglu.w3.weight.data = w3_weight
     my_swiglu=model.MySwiGLU(d_model,d_ff)
     with torch.no_grad():
-        my_swiglu.W1.weight.copy_(w1_weight)
-        my_swiglu.W2.weight.copy_(w2_weight)
-        my_swiglu.W3.weight.copy_(w3_weight)
+        my_swiglu.w1.weight.copy_(w1_weight)
+        my_swiglu.w2.weight.copy_(w2_weight)
+        my_swiglu.w3.weight.copy_(w3_weight)
     return my_swiglu(in_features)
 
 
@@ -159,7 +159,7 @@ def run_multihead_self_attention(
         my_multihead_self_attention.q_proj.weight.copy_(q_proj_weight)
         my_multihead_self_attention.k_proj.weight.copy_(k_proj_weight)
         my_multihead_self_attention.v_proj.weight.copy_(v_proj_weight)
-        my_multihead_self_attention.o_proj.weight.copy_(o_proj_weight)
+        my_multihead_self_attention.output_proj.weight.copy_(o_proj_weight)
     return my_multihead_self_attention(in_features)
 
 def run_multihead_self_attention_with_rope(
@@ -204,7 +204,7 @@ def run_multihead_self_attention_with_rope(
         my_multihead_self_attention.q_proj.weight.copy_(q_proj_weight)
         my_multihead_self_attention.k_proj.weight.copy_(k_proj_weight)
         my_multihead_self_attention.v_proj.weight.copy_(v_proj_weight)
-        my_multihead_self_attention.o_proj.weight.copy_(o_proj_weight)
+        my_multihead_self_attention.output_proj.weight.copy_(o_proj_weight)
     return my_multihead_self_attention(in_features,token_positions)
 
 
@@ -301,7 +301,9 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    my_transformer_block=model.MyTransformerBlock(d_model,num_heads,d_ff,max_seq_len,theta)
+    my_transformer_block.load_state_dict(weights)
+    return my_transformer_block(in_features)
 
 
 def run_transformer_lm(

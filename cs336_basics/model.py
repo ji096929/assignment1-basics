@@ -26,7 +26,7 @@ class MyRMSNorm(nn.Module):
         super().__init__()
         self.eps=eps
         self.d_model=d_model
-        self.g=nn.Parameter(torch.ones(d_model,device=device,dtype=dtype))
+        self.weight=nn.Parameter(torch.ones(d_model,device=device,dtype=dtype))
 
     def forward(self,x:torch.Tensor):
         in_dtype=x.dtype
@@ -34,7 +34,7 @@ class MyRMSNorm(nn.Module):
         ms=torch.mean(x**2,-1,keepdim=True)
         rms=torch.sqrt(ms+self.eps)
         x_norm=x/rms
-        result=x_norm*self.g
+        result=x_norm*self.weight
         return result.to(in_dtype)
 
 class MySwiGLU(nn.Module):
@@ -45,15 +45,15 @@ class MySwiGLU(nn.Module):
             self.d_ff = 64 * ((calc_ff + 63) // 64)
         else:
             self.d_ff = d_ff
-        self.W1=MyLinear(d_model,d_ff)
-        self.W2=MyLinear(d_ff,d_model)
-        self.W3=MyLinear(d_model,d_ff)
+        self.w1=MyLinear(d_model,d_ff)
+        self.w2=MyLinear(d_ff,d_model)
+        self.w3=MyLinear(d_model,d_ff)
     
     def forward(self,x:torch.Tensor):
-        gate=F.silu(self.W1(x))
-        value=self.W3(x)
+        gate=F.silu(self.w1(x))
+        value=self.w3(x)
         hidden=gate*value
-        out=self.W2(hidden)
+        out=self.w2(hidden)
         return out
 
 class MyRoPE(nn.Module):
@@ -100,7 +100,7 @@ class MyMultiheadSelfAttention(nn.Module):
         self.q_proj=MyLinear(d_model,d_model)
         self.k_proj=MyLinear(d_model,d_model)
         self.v_proj=MyLinear(d_model,d_model)
-        self.o_proj=MyLinear(d_model,d_model)
+        self.output_proj=MyLinear(d_model,d_model)
         if theta is not None and max_seq_len is not None:
             self.myrope=MyRoPE(theta,self.d_k,max_seq_len)
 
@@ -125,5 +125,21 @@ class MyMultiheadSelfAttention(nn.Module):
         #拼接
         attention=attention.transpose(1,2).contiguous().view(batch,seq_len,self.d_model)
         #糅杂
-        attention=self.o_proj(attention)
+        attention=self.output_proj(attention)
         return attention
+    
+class MyTransformerBlock(nn.Module):
+    def __init__(self,d_model,num_heads,d_ff,max_seq_len,theta):
+        super().__init__()
+        self.ln1=MyRMSNorm(d_model)
+        self.ln2=MyRMSNorm(d_model)
+        self.attn=MyMultiheadSelfAttention(d_model,num_heads,theta,max_seq_len)
+        self.ffn=MySwiGLU(d_model,d_ff)
+
+    def forward(self,x:torch.Tensor):
+        token_positions=x.shape[1]
+        attn_out=self.attn(self.ln1(x),token_positions)
+        x=x+attn_out
+        ffn_out=self.ffn(self.ln2(x))
+        out=x+ffn_out
+        return out
