@@ -214,3 +214,24 @@ class MyAdamW(torch.optim.Optimizer):
                 p.data-=alpha_t*m/torch.sqrt(v+eps)
         return loss
 
+def get_lr_cosine_schedule(t,alpha_max,alpha_min,Tw,Tc):
+    if t<Tw:
+        return (t/Tw)*alpha_max
+    elif t>Tc:
+        return alpha_min
+    else:
+        progress=(t-Tw)/(Tc-Tw)
+        consine_decay=0.5*(1.0+math.cos(math.pi*progress))
+        return alpha_min+consine_decay*(alpha_max-alpha_min)
+
+def clip_gradients(parameters,max_norm):
+    eps=1e-6
+    grads=[p.grad for p in parameters if p.grad is not None]
+    if not grads:
+        return
+    total_norm=torch.sqrt(sum(torch.sum(g**2) for g in grads))
+    clip_x=max_norm/(total_norm+eps)
+    if clip_x<1:
+        for g in grads:
+            g.mul_(clip_x)
+    
