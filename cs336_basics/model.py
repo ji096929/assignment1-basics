@@ -10,7 +10,7 @@ class MyLinear(nn.Module):
         self.weight=nn.Parameter(torch.empty(out_features,in_features,device=device,dtype=dtype))
         std=math.sqrt(2/(in_features+out_features))
         nn.init.trunc_normal_(self.weight,mean=0,std=std,a=-3*std,b=3*std)
-    def forward(self,x):
+    def forward(self,x)->torch.Tensor:
         return einsum(x,self.weight,"... in_feature ,out_feature in_feature->... out_feature")
 
 class MyEmbedding(nn.Module):
@@ -90,3 +90,40 @@ def scaled_dot_product_attention(Q:torch.Tensor,K:torch.Tensor,V:torch.Tensor,ma
     attn_weights=softmax(scores,-1)
     output=einsum(attn_weights,V,"... seq_q seq_k,... seq_k d_v->... seq_q d_v")
     return output
+
+class MyMultiheadSelfAttention(nn.Module):
+    def __init__(self,d_model,num_heads,theta=None,max_seq_len=None):
+        super().__init__()
+        self.d_model=d_model
+        self.num_heads=num_heads
+        self.d_k=d_model//num_heads
+        self.q_proj=MyLinear(d_model,d_model)
+        self.k_proj=MyLinear(d_model,d_model)
+        self.v_proj=MyLinear(d_model,d_model)
+        self.o_proj=MyLinear(d_model,d_model)
+        if theta is not None and max_seq_len is not None:
+            self.myrope=MyRoPE(theta,self.d_k,max_seq_len)
+
+    def forward(self,x:torch.Tensor,token_positions=None):
+        batch,seq_len,_=x.shape
+        #投影
+        q=self.q_proj(x)
+        k=self.k_proj(x)
+        v=self.v_proj(x)
+        #切多头
+        q=q.view(batch,seq_len,self.num_heads,self.d_k).transpose(1,2)
+        k=k.view(batch,seq_len,self.num_heads,self.d_k).transpose(1,2)
+        v=v.view(batch,seq_len,self.num_heads,self.d_k).transpose(1,2)
+        #旋转编码
+        if token_positions is not None:
+            q=self.myrope(q,token_positions)
+            k=self.myrope(k,token_positions)
+        #构造因果掩码
+        mask=torch.tril(torch.ones(seq_len,seq_len,dtype=torch.bool,device=x.device))
+        #注意力计算
+        attention=scaled_dot_product_attention(q,k,v,mask)
+        #拼接
+        attention=attention.transpose(1,2).contiguous().view(batch,seq_len,self.d_model)
+        #糅杂
+        attention=self.o_proj(attention)
+        return attention
