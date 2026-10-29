@@ -192,6 +192,7 @@ class MyAdamW(torch.optim.Optimizer):
             weight_decay=group["weight_decay"]
 
             for p in group["params"]:
+                assert isinstance(p, torch.nn.Parameter)
                 if p.grad is None:
                     continue
                 grad=p.grad.data
@@ -201,8 +202,8 @@ class MyAdamW(torch.optim.Optimizer):
                     state["t"]=0
                     state["m"]=torch.zeros_like(p.data)
                     state["v"]=torch.zeros_like(p.data)
-                m=state["m"]
-                v=state["v"]
+                m:torch.Tensor=state["m"]
+                v:torch.Tensor=state["v"]
                 state["t"]+=1
                 t=state["t"]
                 #数学表达
