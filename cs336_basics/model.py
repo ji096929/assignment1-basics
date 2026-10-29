@@ -137,7 +137,7 @@ class MyTransformerBlock(nn.Module):
         self.ffn=MySwiGLU(d_model,d_ff)
 
     def forward(self,x:torch.Tensor):
-        token_positions=x.shape[1]
+        token_positions = torch.arange(x.shape[1], device=x.device)
         attn_out=self.attn(self.ln1(x),token_positions)
         x=x+attn_out
         ffn_out=self.ffn(self.ln2(x))
