@@ -3,6 +3,7 @@ import torch.nn as nn
 from einops import einsum
 import math
 import torch.nn.functional as F
+import numpy as np
 
 class MyLinear(nn.Module):
     def __init__(self,in_features,out_features,device=None,dtype=None):
@@ -234,4 +235,17 @@ def clip_gradients(parameters,max_norm):
     if clip_x<1:
         for g in grads:
             g.mul_(clip_x)
+
+def run_get_batch(x,batch_size,context_length,device):
+    #找到整个数组的最大可取起点
+    max_start=len(x)-context_length
+    #随机生成batch_size个七点
+    starts=np.random.randint(0,max_start,size=batch_size)
+    #切分
+    inputs=np.stack([x[s:s+context_length] for s in starts])
+    targets=np.stack([x[s+1:s+context_length+1] for s in starts])
+    #转成pytorch的tensor并搬运到gpu
+    input_tensor=torch.tensor(inputs,dtype=torch.long,device=device)
+    targets_tensor=torch.tensor(targets,dtype=torch.long,device=device)
     
+    return input_tensor,targets_tensor
