@@ -180,7 +180,7 @@ def cross_entropy(logits:torch.Tensor,targets:torch.Tensor):
     return loss.mean()
 
 class MyAdamW(torch.optim.Optimizer):
-    def __init__(self,params,lr,betas,eps,weight_decay):
+    def __init__(self,params,lr,betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01):
         defaults={"lr":lr,"betas":betas,"eps":eps,"weight_decay":weight_decay}
         super().__init__(params,defaults)
     
