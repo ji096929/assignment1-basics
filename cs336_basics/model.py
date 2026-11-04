@@ -249,3 +249,20 @@ def run_get_batch(x,batch_size,context_length,device):
     targets_tensor=torch.tensor(targets,dtype=torch.long,device=device)
     
     return input_tensor,targets_tensor
+
+def save_checkpoint(model:torch.nn.Module,optimizer:torch.optim.Optimizer,iteration:int,out):
+    #把所有状态打包为字典
+    checkpoint={
+        'model':model.state_dict(),
+        'optimizer':optimizer.state_dict(),
+        'iteration':iteration
+    }
+    #写盘
+    torch.save(checkpoint,out)
+
+def load_checkpoint(src,model:torch.nn.Module,optimizer:torch.optim.Optimizer):
+    #从文件中读取字典
+    checkpoint=torch.load(src,weights_only=False)
+    model.load_state_dict(checkpoint['model'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    return checkpoint['iteration']
